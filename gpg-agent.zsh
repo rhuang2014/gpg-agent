@@ -55,13 +55,9 @@ gpg-agent-status() {
 }
 
 gpg-agent-init() {
-    if [[ ${GPG_AGENT} != "gpg-agent" ]]; then
-        other-agent-ssh
-    else
-        AGENT_SOCK="$(gpgconf --list-dirs agent-socket)"
-        if [[ ! -S ${AGENT_SOCK} ]]; then
-            gpgconf --launch gpg-agent &>/dev/null
-        fi
+    AGENT_SOCK="$(gpgconf --list-dirs agent-socket)"
+    if [[ ! -S ${AGENT_SOCK} ]]; then
+        gpgconf --launch gpg-agent &>/dev/null
     fi
     # Set GPG_TTY so gpg-agent knows where to prompt.  See gpg-agent(1)
     export GPG_TTY="${TTY}"
@@ -70,6 +66,7 @@ gpg-agent-init() {
         export PINENTRY_USER_DATA='USE_CURSES=1'
     fi
     gpg-agent-ssh
+    [[ ${GPG_AGENT} != "gpg-agent" ]] && other-agent-ssh
 }
 
 gpg-agent() {
