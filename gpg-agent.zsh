@@ -23,14 +23,14 @@ gpg-agent-stop() {
 }
 
 other-agent-ssh() {
-    export SSH_AUTH_SOCK=$(launchctl getenv SSH_AUTH_SOCK)
+    export SSH_AUTH_SOCK=${SSH_AUTH_SOCK:-$(launchctl getenv SSH_AUTH_SOCK)}
 }
 
 gpg-agent-ssh() {
     GNUPGCONFIG="${GNUPGHOME:-"${HOME}/.gnupg"}/gpg-agent.conf"
     [[ -r "${GNUPGCONFIG}" ]] &&\
         if command grep -q '^enable-ssh-support' "${GNUPGCONFIG}"; then
-            export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+            export SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-$(gpgconf --list-dirs agent-ssh-socket)}"
             unset SSH_AGENT_PID
         fi
         # update GPG-Agent TTY
