@@ -28,17 +28,22 @@ gpg-agent-restart() {
     gpg-agent-start
 }
 
-other-agent-ssh() {
-    [[ ${GPG_AGENT} == "gpg-agent" ]] && return
-    SSH_AUTH_SOCK=$(launchctl getenv SSH_AUTH_SOCK)
+gpg-agent-socket() {
+    local ssh_auth_sock
+    if [[ "${GPG_AGENT}" == "gpg-agent" ]]; then
+        ssh_auth_sock=$(gpgconf --list-dirs agent-ssh-socket)
+    else
+        ssh_auth_sock=$(launchctl getenv SSH_AUTH_SOCK)
+    fi
+    [[ -n "${ssh_auth_sock}" ]] && SSH_AUTH_SOCK="${ssh_auth_sock}"
+    unset ssh_auth_sock
 }
 
 gpg-agent-ssh() {
     GNUPGCONFIG="${GNUPGHOME:-"${HOME}/.gnupg"}/gpg-agent.conf"
     [[ -r "${GNUPGCONFIG}" ]] &&\
         if command grep -q '^enable-ssh-support' "${GNUPGCONFIG}"; then
-            SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
-            unset SSH_AGENT_PID
+            gpg-agent-socket
         fi
         # update GPG-Agent TTY
         gpg-connect-agent updatestartuptty /bye &>/dev/null
@@ -52,12 +57,11 @@ gpg-agent-pinentry() {
 }
 
 gpg-agent-status() {
-    [[ ${GPG_AGENT} != "gpg-agent" ]] && other-agent-ssh
-    command ${GPG_AGENT} --version >/dev/null || command ${GPG_AGENT} -version
+    [[ -n ${SSH_AUTH_SOCK} ]] || return
+    command ${GPG_AGENT} -version 2>/dev/null || command ${GPG_AGENT} --version 2>/dev/null
     echo -e "\nPID: ${${$(pidof ${GPG_AGENT}):gs/ //}:-NOT_FOUND}, SOCK: ${SSH_AUTH_SOCK}\n"
-    gpgconf --list-components
-    [[ -n ${SSH_AUTH_SOCK} ]] && [[ ${GPG_AGENT} != "gpg-agent" ]] &&\
-        eval ${${(s_-_)GPG_AGENT}[1]} stats
+    gpgconf --list-components 2>/dev/null
+    eval ${${(s_-_)GPG_AGENT}[1]} stats 2>/dev/null
     return 0
 }
 
@@ -73,8 +77,6 @@ gpg-agent-init() {
         export PINENTRY_USER_DATA='USE_CURSES=1'
     fi
     gpg-agent-ssh
-    other-agent-ssh
-    export SSH_AUTH_SOCK
 }
 
 gpg-agent() {
@@ -84,7 +86,7 @@ gpg-agent() {
             stop) gpg-agent-stop ;;
             restart) gpg-agent-restart ;;
             ssh) gpg-agent-ssh ;;
-            kpa) gpg-agent-pinentry ;;
+            pinentry) gpg-agent-pinentry ;;
             *) gpg-agent-init ;;
         esac
         return
