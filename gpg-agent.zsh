@@ -22,6 +22,12 @@ gpg-agent-stop() {
     fi
 }
 
+gpg-agent-restart() {
+    gpg-agent-stop
+    sleep 1
+    gpg-agent-start
+}
+
 other-agent-ssh() {
     [[ ${GPG_AGENT} == "gpg-agent" ]] && return
     SSH_AUTH_SOCK=$(launchctl getenv SSH_AUTH_SOCK)
@@ -76,6 +82,7 @@ gpg-agent() {
         case "${act}" in
             start) gpg-agent-start ;;
             stop) gpg-agent-stop ;;
+            restart) gpg-agent-restart ;;
             ssh) gpg-agent-ssh ;;
             kpa) gpg-agent-pinentry ;;
             *) gpg-agent-init ;;
