@@ -23,14 +23,15 @@ gpg-agent-stop() {
 }
 
 other-agent-ssh() {
-    export SSH_AUTH_SOCK=${SSH_AUTH_SOCK:-$(launchctl getenv SSH_AUTH_SOCK)}
+    [[ ${GPG_AGENT} == "gpg-agent" ]] && return
+    SSH_AUTH_SOCK=$(launchctl getenv SSH_AUTH_SOCK)
 }
 
 gpg-agent-ssh() {
     GNUPGCONFIG="${GNUPGHOME:-"${HOME}/.gnupg"}/gpg-agent.conf"
     [[ -r "${GNUPGCONFIG}" ]] &&\
         if command grep -q '^enable-ssh-support' "${GNUPGCONFIG}"; then
-            export SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-$(gpgconf --list-dirs agent-ssh-socket)}"
+            SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
             unset SSH_AGENT_PID
         fi
         # update GPG-Agent TTY
@@ -66,7 +67,8 @@ gpg-agent-init() {
         export PINENTRY_USER_DATA='USE_CURSES=1'
     fi
     gpg-agent-ssh
-    [[ ${GPG_AGENT} != "gpg-agent" ]] && other-agent-ssh
+    other-agent-ssh
+    export SSH_AUTH_SOCK
 }
 
 gpg-agent() {
