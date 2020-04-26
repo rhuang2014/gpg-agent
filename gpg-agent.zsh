@@ -10,17 +10,17 @@
 # if ! egrep -q '^[^#].*GPG_AGENT=' ~/.zshenv; then echo 'export GPG_AGENT="otheragent"' >> ~/.zshenv; fi
 typeset -g GPG_AGENT="${GPG_AGENT:-gpg}-agent"
 (( $+commands[${GPG_AGENT}] )) || return 1
-typeset -g SSH_AUTH_SOCK AGENT_SOCK
+typeset -g SSH_AUTH_SOCK AGENT_SOCK GPG_TTY
 
 gpg-agent-start() {
     gpg-agent-init
 }
 
 gpg-agent-stop() {
+    gpg-agent-killpinentry
     if [[ -S $(gpgconf --list-dirs agent-socket) ]]; then
         gpgconf --kill gpg-agent
     fi
-    gpg-agent-pinentry
 }
 
 gpg-agent-restart() {
@@ -36,13 +36,14 @@ gpg-agent-socket() {
     else
         ssh_auth_sock=$(launchctl getenv SSH_AUTH_SOCK)
     fi
-    [[ -n "${ssh_auth_sock}" ]] && SSH_AUTH_SOCK="${ssh_auth_sock}"
+    [[ -n "${ssh_auth_sock}" ]] && [[ -S ${SSH_AUTH_SOCK} ]] &&\
+        export SSH_AUTH_SOCK="${ssh_auth_sock}"
     unset ssh_auth_sock
 }
 
 gpg-agent-updatestartuptty() {
     # Set GPG_TTY so gpg-agent knows where to prompt.  See gpg-agent(1)
-    export GPG_TTY="${TTY}"
+    export GPG_TTY=$(tty)
     # update GPG-Agent TTY
     gpg-connect-agent -q updatestartuptty /bye &>/dev/null
     if [[ -n "$SSH_CONNECTION" ]]; then
@@ -57,19 +58,21 @@ gpg-agent-ssh() {
         if command grep -q '^enable-ssh-support' "${GNUPGCONFIG}"; then
             gpg-agent-socket
         fi
-        gpg-agent-updatestartuptty
+    gpg-agent-updatestartuptty
 }
 
-gpg-agent-pinentry() {
-    for pid ($(pidof pinentry)) do
+gpg-agent-killpinentry() {
+    local -a pinentry=($(grep '^pinentry-program' ~/.gnupg/gpg-agent.conf))
+    [[ -x ${pinentry[2]} ]] || return
+    for pid ($(pidof ${pinentry[2]:t})) do
         kill "$pid"
     done
 }
 
 gpg-agent-hook() {
-    autoload -U add-zsh-hook
     git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
-    gpg-agent-updatestartuptty
+    gpg-agent-init
+    #autoload -U add-zsh-hook
 }
 
 gpg-agent-status() {
@@ -83,10 +86,10 @@ gpg-agent-status() {
 
 gpg-agent-init() {
     AGENT_SOCK="$(gpgconf --list-dirs agent-socket)"
+    gpg-agent-ssh
     if [[ ! -S ${AGENT_SOCK} ]]; then
         gpgconf --launch gpg-agent &>/dev/null
     fi
-    gpg-agent-ssh
 }
 
 gpg-agent() {
@@ -96,7 +99,7 @@ gpg-agent() {
             stop) gpg-agent-stop ;;
             restart) gpg-agent-restart ;;
             ssh) gpg-agent-ssh ;;
-            pinentry) gpg-agent-pinentry ;;
+            killpinentry) gpg-agent-killpinentry ;;
             *) gpg-agent-init ;;
         esac
         return
@@ -105,5 +108,5 @@ gpg-agent() {
 }
 
 gpg-agent "$@"
-add-zsh-hook chpwd gpg-agent-hook
+#add-zsh-hook chpwd gpg-agent-hook
 return 0
