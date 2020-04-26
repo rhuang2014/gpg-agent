@@ -20,6 +20,7 @@ gpg-agent-stop() {
     if [[ -S $(gpgconf --list-dirs agent-socket) ]]; then
         gpgconf --kill gpg-agent
     fi
+    gpg-agent-pinentry
 }
 
 gpg-agent-restart() {
@@ -39,21 +40,36 @@ gpg-agent-socket() {
     unset ssh_auth_sock
 }
 
+gpg-agent-updatestartuptty() {
+    # Set GPG_TTY so gpg-agent knows where to prompt.  See gpg-agent(1)
+    export GPG_TTY="${TTY}"
+    # update GPG-Agent TTY
+    gpg-connect-agent -q updatestartuptty /bye &>/dev/null
+    if [[ -n "$SSH_CONNECTION" ]]; then
+        # Set PINENTRY_USER_DATA so pinentry-auto knows to present a text UI.
+        export PINENTRY_USER_DATA='USE_CURSES=1'
+    fi
+}
+
 gpg-agent-ssh() {
     GNUPGCONFIG="${GNUPGHOME:-"${HOME}/.gnupg"}/gpg-agent.conf"
     [[ -r "${GNUPGCONFIG}" ]] &&\
         if command grep -q '^enable-ssh-support' "${GNUPGCONFIG}"; then
             gpg-agent-socket
         fi
-        # update GPG-Agent TTY
-        gpg-connect-agent updatestartuptty /bye &>/dev/null
+        gpg-agent-updatestartuptty
 }
 
 gpg-agent-pinentry() {
-    gpg-agent-stop
     for pid ($(pidof pinentry)) do
         kill "$pid"
     done
+}
+
+gpg-agent-hook() {
+    autoload -U add-zsh-hook
+    git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+    gpg-agent-updatestartuptty
 }
 
 gpg-agent-status() {
@@ -69,12 +85,6 @@ gpg-agent-init() {
     AGENT_SOCK="$(gpgconf --list-dirs agent-socket)"
     if [[ ! -S ${AGENT_SOCK} ]]; then
         gpgconf --launch gpg-agent &>/dev/null
-    fi
-    # Set GPG_TTY so gpg-agent knows where to prompt.  See gpg-agent(1)
-    export GPG_TTY="${TTY}"
-    if [[ -n "$SSH_CONNECTION" ]]; then
-        # Set PINENTRY_USER_DATA so pinentry-auto knows to present a text UI.
-        export PINENTRY_USER_DATA='USE_CURSES=1'
     fi
     gpg-agent-ssh
 }
@@ -93,5 +103,7 @@ gpg-agent() {
     done
     gpg-agent-init
 }
+
 gpg-agent "$@"
+add-zsh-hook chpwd gpg-agent-hook
 return 0
