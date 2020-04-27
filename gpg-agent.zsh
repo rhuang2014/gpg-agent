@@ -72,7 +72,7 @@ gpg-agent-killpinentry() {
 gpg-agent-hook() {
     git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
     gpg-agent-init
-    #autoload -U add-zsh-hook
+    autoload -U add-zsh-hook
 }
 
 gpg-agent-status() {
@@ -108,5 +108,5 @@ gpg-agent() {
 }
 
 gpg-agent "$@"
-#add-zsh-hook chpwd gpg-agent-hook
+add-zsh-hook chpwd gpg-agent-hook
 return 0
