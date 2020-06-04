@@ -85,10 +85,15 @@ gpg-agent-status() {
 }
 
 gpg-agent-init() {
-    AGENT_SOCK="$(gpgconf --list-dirs agent-socket)"
-    gpg-agent-ssh
-    if [[ ! -S ${AGENT_SOCK} ]]; then
-        gpgconf --launch gpg-agent &>/dev/null
+    if [[ "${GPG_AGENT}" == "gpg-agent" ]]; then
+        AGENT_SOCK="$(gpgconf --list-dirs agent-socket)"
+        gpg-agent-ssh
+        if [[ ! -S ${AGENT_SOCK} ]]; then
+            gpgconf --launch gpg-agent &>/dev/null
+        fi
+    else
+        [[ -z $(pidof ${GPG_AGENT}) ]] && ${${(s_-_)GPG_AGENT}[1]} restart
+        ${${(s_-_)GPG_AGENT}[1]} ssh-add -time=12h -quiet
     fi
 }
 
