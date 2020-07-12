@@ -92,8 +92,9 @@ gpg-agent-init() {
             gpgconf --launch gpg-agent &>/dev/null
         fi
     else
-        [[ -z $(pidof ${GPG_AGENT}) ]] && ${${(s_-_)GPG_AGENT}[1]} restart
-        ${${(s_-_)GPG_AGENT}[1]} ssh-add -time=12h -quiet
+        local sshadd=0
+        [[ -z $(pidof ${GPG_AGENT}) ]] || (( ! $(ssh-add -L|grep -c touchid) )) && { ${${(s_-_)GPG_AGENT}[1]} restart; sshadd=1; }
+        (( $sshadd )) && ${${(s_-_)GPG_AGENT}[1]} ssh-add -time=12h -quiet
     fi
 }
 
