@@ -94,7 +94,11 @@ gpg-agent-init() {
         fi
     else
         local sshadd=0
-        [[ -z $(pidof ${GPG_AGENT}) ]] || (( ! $(ssh-add -L|egrep -c 'touchid.*Second') )) && { ${${(s_-_)GPG_AGENT}[1]} restart; sshadd=1; }
+        if [[ -z $(pidof ${GPG_AGENT}) ]]; then
+            ${${(s_-_)GPG_AGENT}[1]} restart; sshadd=1
+        else
+            (( ! $(ssh-add -L|egrep -c 'touchid.*Second') )) && sshadd=1
+        fi
         (( $sshadd )) && ${${(s_-_)GPG_AGENT}[1]} ssh-add -time=12h -quiet
     fi
 }
