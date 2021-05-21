@@ -21,6 +21,7 @@ gpg-agent-stop() {
     if [[ -S $(gpgconf --list-dirs agent-socket) ]]; then
         gpgconf --kill gpg-agent
     fi
+    [[ -n $(pidof gpg-agent) ]] && killall gpg-agent
 }
 
 gpg-agent-restart() {
@@ -93,7 +94,7 @@ gpg-agent-init() {
         fi
     else
         local sshadd=0
-        [[ -z $(pidof ${GPG_AGENT}) ]] || (( ! $(ssh-add -L|grep -c touchid) )) && { ${${(s_-_)GPG_AGENT}[1]} restart; sshadd=1; }
+        [[ -z $(pidof ${GPG_AGENT}) ]] || (( ! $(ssh-add -L|egrep -c 'touchid.*Second') )) && { ${${(s_-_)GPG_AGENT}[1]} restart; sshadd=1; }
         (( $sshadd )) && ${${(s_-_)GPG_AGENT}[1]} ssh-add -time=12h -quiet
     fi
 }
